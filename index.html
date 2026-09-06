@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskFlow // Excel Loan Risk Analytics Engine</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div id="login-container" class="login-overlay">
+        <div class="login-card glass-card">
+            <div class="login-header">
+                <i class="fa-solid fa-shield-halved login-logo-icon"></i>
+                <h2>RiskFlow</h2>
+                <p>Secure Banking Risk Engine & Portal</p>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="login-account">Account Number / User ID</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <input type="text" id="login-account" name="accountNo" placeholder="Enter Account No (e.g. LP001003)" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-pin">Secret PIN / Password</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="login-pin" name="pin" placeholder="Enter PIN (e.g. 1234)" required>
+                    </div>
+                </div>
+                <div class="login-error hidden" id="login-error-msg">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span id="login-error-text">Invalid Account Number or PIN</span>
+                </div>
+                <button type="submit" class="submit-btn" id="login-btn">
+                    <i class="fa-solid fa-right-to-bracket"></i> Authenticate & Enter
+                </button>
+            </form>
+
+            <div class="demo-shortcuts">
+                <p class="demo-title">Quick Demo Login Shortcuts</p>
+                <div class="demo-btn-group">
+                    <button type="button" class="demo-shortcut-btn analyst-demo" id="demo-analyst-btn">
+                        <i class="fa-solid fa-user-tie"></i> Risk Analyst
+                    </button>
+                    <button type="button" class="demo-shortcut-btn customer-demo" id="demo-customer-btn">
+                        <i class="fa-solid fa-user"></i> Customer (LP001003)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <i class="fa-solid fa-shield-halved logo-icon"></i>
+                <div class="logo-text">
+                    <span class="brand-title">RiskFlow</span>
+                    <span class="brand-subtitle">EXCEL RISK ENGINE</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <!-- Analyst Navigation -->
+                <button class="nav-btn active analyst-only" data-tab="evaluator">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>Risk Evaluator</span>
+                </button>
+                <button class="nav-btn analyst-only" data-tab="portfolio" id="btn-portfolio-tab">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Portfolio Analytics</span>
+                </button>
+                <button class="nav-btn analyst-only" data-tab="simulator">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>What-If Simulator</span>
+                </button>
+
+                <!-- Customer Navigation -->
+                <button class="nav-btn customer-only active hidden" data-tab="customer-loan">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>My Application</span>
+                </button>
+                <button class="nav-btn customer-only hidden" data-tab="customer-eligibility">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>Check Eligibility</span>
+                </button>
+
+                <!-- Common Logout Button -->
+                <button class="nav-btn logout-btn" id="logout-btn" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); border-radius: 0; padding-top: 1.5rem;">
+                    <i class="fa-solid fa-right-from-bracket" style="color: var(--color-danger);"></i>
+                    <span style="color: var(--color-danger); font-weight: 600;">Sign Out</span>
+                </button>
+            </nav>
+            <div class="server-status-widget">
+                <div class="status-indicator" id="api-status-dot"></div>
+                <div class="status-details">
+                    <span class="status-label" id="api-status-text">Connecting...</span>
+                    <span class="status-mode" id="api-mode-text">Checking Engine</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-bar-placeholder">
+                    <i class="fa-solid fa-file-excel" style="color: #10B981; font-size: 1.1rem;"></i>
+                    <span class="status-label" id="active-file-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Active File: bankloan analysis.xlsx</span>
+                </div>
+                <div class="user-profile">
+                    <span class="user-role" id="user-display-role">Risk Analyst</span>
+                    <div class="user-avatar" id="user-display-avatar">RA</div>
+                </div>
+            </header>
+
+            <!-- Tab 1: Risk Evaluator -->
+            <section id="evaluator-tab" class="tab-content active">
+                <div class="page-header">
+                    <h1>Loan Risk Evaluator</h1>
+                    <p class="subtitle">Input applicant details to run inference against the Random Forest model trained on your spreadsheet data</p>
+                </div>
+
+                <div class="evaluator-grid">
+                    <!-- Left: Form -->
+                    <div class="glass-card form-card">
+                        <h2 class="card-title"><i class="fa-solid fa-file-invoice-dollar icon-margin"></i> Applicant Profile</h2>
+                        <form id="risk-form">
+                            <!-- Categorical Row 1 -->
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="gender">Gender</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-venus-mars"></i>
+                                        <select id="gender" name="Gender" required>
+                                            <option value="Male" selected>Male</option>
+                                            <option value="Female">Female</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="married">Marital Status</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-ring"></i>
+                                        <select id="married" name="Married" required>
+                                            <option value="Yes" selected>Married (Yes)</option>
+                                            <option value="No">Unmarried (No)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Categorical Row 2 -->
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="dependents">Dependents</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-children"></i>
+                                        <select id="dependents" name="Dependents" required>
+                                            <option value="0" selected>0 Dependents</option>
+                                            <option value="1">1 Dependent</option>
+                                            <option value="2">2 Dependents</option>
+                                            <option value="3+">3+ Dependents</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="education">Education</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-graduation-cap"></i>
+                                        <select id="education" name="Education" required>
+                                            <option value="Graduate" selected>Graduate</option>
+                                            <option value="Not Graduate">Not Graduate</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Categorical Row 3 -->
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="self-employed">Self Employed</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-user-tie"></i>
+                                        <select id="self-employed" name="Self_Employed" required>
+                                            <option value="No" selected>No (Salaried)</option>
+                                            <option value="Yes">Yes (Self-Employed)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="credit-history">Credit History</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                        <select id="credit-history" name="Credit_History" required>
+                                            <option value="1.0" selected>Good Credit History (1.0)</option>
+                                            <option value="0.0">Poor / Delinquent Credit History (0.0)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Financial Row 1 -->
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="applicant-income">Applicant Income ($/month)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-wallet"></i>
+                                        <input type="number" id="applicant-income" name="ApplicantIncome" min="0" value="5000" required>
+                                    </div>
+                                    <span class="input-hint">Main applicant monthly earnings</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="coapplicant-income">Co-Applicant Income ($/month)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-handshake"></i>
+                                        <input type="number" id="coapplicant-income" name="CoapplicantIncome" min="0" value="1500" required>
+                                    </div>
+                                    <span class="input-hint">Secondary applicant monthly earnings</span>
+                                </div>
+                            </div>
+
+                            <!-- Financial Row 2 -->
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="loan-amount">Requested Loan Amount ($ in Thousands)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                                        <input type="number" id="loan-amount" name="LoanAmount" min="1" value="120" required>
+                                    </div>
+                                    <span class="input-hint">E.g., 120 = $120,000</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="loan-term">Loan Term (Months)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-calendar-days"></i>
+                                        <input type="number" id="loan-term" name="Loan_Amount_Term" min="12" max="600" value="360" required>
+                                    </div>
+                                    <span class="input-hint">Term duration (standard 360)</span>
+                                </div>
+                            </div>
+
+                            <!-- Categorical Row 4 -->
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="property-area">Property Area</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-map-location-dot"></i>
+                                        <select id="property-area" name="Property_Area" required>
+                                            <option value="Urban">Urban</option>
+                                            <option value="Semiurban" selected>Semiurban</option>
+                                            <option value="Rural">Rural</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="purpose">Loan Purpose</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-list"></i>
+                                        <select id="purpose" name="PURPOSE" required>
+                                            <option value="HOME" selected>Home Purchase</option>
+                                            <option value="CAR">Car Purchase</option>
+                                            <option value="EDUCATION">Education Funding</option>
+                                            <option value="GOLD">Gold Loan</option>
+                                            <option value="INSURANCE">Insurance Finance</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="submit-btn" id="evaluate-btn">
+                                <i class="fa-solid fa-bolt"></i> Run Model Analysis
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Right: Results -->
+                    <div class="glass-card results-card empty" id="results-panel">
+                        <div class="results-empty-state">
+                            <i class="fa-solid fa-brain-circuit brain-icon"></i>
+                            <h3>Awaiting Loan Application</h3>
+                            <p>Fill out the profile on the left and submit to trigger model inference on your Excel training weights.</p>
+                        </div>
+                        <div class="results-active-state hidden">
+                            <h2 class="card-title">Risk Inference Report</h2>
+                            <div class="score-display">
+                                <div class="gauge-container">
+                                    <svg viewBox="0 0 100 50" class="gauge">
+                                        <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8"></path>
+                                        <path class="gauge-fill" id="results-gauge-fill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8" stroke-dasharray="126" stroke-dashoffset="126"></path>
+                                    </svg>
+                                    <div class="gauge-text">
+                                        <span id="results-probability-pct">0%</span>
+                                        <span class="label">Default Prob</span>
+                                    </div>
+                                </div>
+                                <div class="verdict-box">
+                                    <span class="badge" id="results-grade-badge">LOW RISK</span>
+                                    <span class="status-msg" id="results-decision-text">APPROVED</span>
+                                </div>
+                            </div>
+
+                            <hr class="divider">
+
+                            <div class="recommendations-section">
+                                <h3><i class="fa-solid fa-list-check"></i> Analysis & Recommendation</h3>
+                                <ul id="results-recommendation-list">
+                                    <li>Checking inputs against model parameters...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: Portfolio Analytics -->
+            <section id="portfolio-tab" class="tab-content">
+                <div class="page-header">
+                    <h1>Portfolio Analytics</h1>
+                    <p class="subtitle">Aggregate statistical analysis computed directly from C:\Users\Asus\Desktop\bankloan analysis.xlsx</p>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="glass-card kpi-card">
+                        <div class="kpi-icon blue"><i class="fa-solid fa-users"></i></div>
+                        <div class="kpi-info">
+                            <span class="kpi-value" id="kpi-total-apps">0</span>
+                            <span class="kpi-label">Active Records</span>
+                        </div>
+                    </div>
+                    <div class="glass-card kpi-card">
+                        <div class="kpi-icon green"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="kpi-info">
+                            <span class="kpi-value" id="kpi-acceptance-rate">0%</span>
+                            <span class="kpi-label">Acceptance Rate</span>
+                        </div>
+                    </div>
+                    <div class="glass-card kpi-card">
+                        <div class="kpi-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="kpi-info">
+                            <span class="kpi-value" id="kpi-avg-risk">0%</span>
+                            <span class="kpi-label">Average Risk Rate</span>
+                        </div>
+                    </div>
+                    <div class="glass-card kpi-card">
+                        <div class="kpi-icon purple"><i class="fa-solid fa-vault"></i></div>
+                        <div class="kpi-info">
+                            <span class="kpi-value" id="kpi-avg-loan">$0</span>
+                            <span class="kpi-label">Avg Loan Size</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <div class="glass-card chart-container-card">
+                        <h3 class="card-title">Risk Distribution</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="riskDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card chart-container-card">
+                        <h3 class="card-title">Random Forest Feature Importances</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="featureImportanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: What-If Simulator -->
+            <section id="simulator-tab" class="tab-content">
+                <div class="page-header">
+                    <h1>What-If Risk Simulator</h1>
+                    <p class="subtitle">Interact with variables in real-time to observe how shifting applicant credentials impacts risk score calculations</p>
+                </div>
+
+                <div class="simulator-layout">
+                    <!-- Left: Interactive Sliders -->
+                    <div class="glass-card sim-controls-card">
+                        <h3 class="card-title">Adjust Application Variables</h3>
+                        
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <span class="slider-title">Applicant Monthly Income ($)</span>
+                                <span class="slider-value" id="sim-income-val">5,000</span>
+                            </div>
+                            <input type="range" id="sim-income" min="500" max="25000" step="100" value="5000" class="slider-input">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <span class="slider-title">Co-Applicant Monthly Income ($)</span>
+                                <span class="slider-value" id="sim-coincome-val">1,500</span>
+                            </div>
+                            <input type="range" id="sim-coincome" min="0" max="15000" step="100" value="1500" class="slider-input">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <span class="slider-title">Requested Loan Amount ($ Thousands)</span>
+                                <span class="slider-value" id="sim-amount-val">120</span>
+                            </div>
+                            <input type="range" id="sim-amount" min="10" max="700" step="5" value="120" class="slider-input">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <span class="slider-title">Loan Term (Months)</span>
+                                <span class="slider-value" id="sim-term-val">360</span>
+                            </div>
+                            <input type="range" id="sim-term" min="12" max="480" step="12" value="360" class="slider-input">
+                        </div>
+
+                        <div class="toggle-group">
+                            <label class="toggle-label">
+                                <span>Has Clear Credit History (Credit_History = 1)</span>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="sim-credit-history" checked>
+                                    <span class="toggle-slider"></span>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="slider-group" style="margin-top: 1.5rem;">
+                            <label class="slider-title" style="display: block; margin-bottom: 0.5rem;">Education Level</label>
+                            <div class="input-wrapper" style="border: 1px solid var(--border-color); border-radius: 8px;">
+                                <select id="sim-education" style="border: none; padding: 0.6rem 1rem; width: 100%; background: none; color: white;">
+                                    <option value="Graduate" selected>Graduate</option>
+                                    <option value="Not Graduate">Not Graduate</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Dynamic Outcome -->
+                    <div class="glass-card sim-outcome-card">
+                        <h3 class="card-title">Real-Time Risk Analysis</h3>
+                        <div class="sim-outcome-flex">
+                            <div class="sim-score-circle" id="sim-circle">
+                                <span class="sim-score-num" id="sim-prob-display">8.4%</span>
+                                <span class="sim-score-label">Risk probability</span>
+                            </div>
+                            
+                            <div class="sim-stats">
+                                <div class="sim-stat-row">
+                                    <span class="sim-stat-label">Risk Category:</span>
+                                    <span class="sim-stat-val text-green" id="sim-category-display">LOW RISK</span>
+                                </div>
+                                <div class="sim-stat-row">
+                                    <span class="sim-stat-label">Auto-Decision:</span>
+                                    <span class="sim-stat-val text-green" id="sim-decision-display">APPROVE</span>
+                                </div>
+                                <div class="sim-stat-row">
+                                    <span class="sim-stat-label">Estimated APR:</span>
+                                    <span class="sim-stat-val" id="sim-apr-display">5.25%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sim-chart-section">
+                            <h4>Risk Contribution Sensitivity</h4>
+                            <div class="sim-progress-block">
+                                <div class="sim-progress-label"><span>Credit Profile History</span><span id="contrib-credit-val">Low Risk Impact</span></div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill green" id="contrib-credit-bar" style="width: 10%;"></div></div>
+                            </div>
+                            <div class="sim-progress-block">
+                                <div class="sim-progress-label"><span>Financial Leverage (LTI/DTI proxy)</span><span id="contrib-leverage-val">Medium Risk Impact</span></div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill yellow" id="contrib-leverage-bar" style="width: 35%;"></div></div>
+                            </div>
+                            <div class="sim-progress-block">
+                                <div class="sim-progress-label"><span>Applicant Education & Employability</span><span id="contrib-stability-val">Low Risk Impact</span></div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill green" id="contrib-stability-bar" style="width: 15%;"></div></div>
+                            </div>
+                        </div>
+                    </div>
+            </section>
+
+            <!-- Tab 4: Customer Application View -->
+            <section id="customer-loan-tab" class="tab-content customer-only hidden">
+                <div class="page-header">
+                    <h1>My Loan Application</h1>
+                    <p class="subtitle">Real-time status and analysis of your active bank loan account</p>
+                </div>
+
+                <div class="evaluator-grid">
+                    <!-- Left: Details Card -->
+                    <div class="glass-card">
+                        <h2 class="card-title"><i class="fa-solid fa-user-circle icon-margin"></i> Account Profile Details</h2>
+                        <div class="profile-details-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Account No / Loan ID</span>
+                                <span class="detail-value" id="cust-loan-id">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Gender</span>
+                                <span class="detail-value" id="cust-gender">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Marital Status</span>
+                                <span class="detail-value" id="cust-married">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Dependents</span>
+                                <span class="detail-value" id="cust-dependents">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Education</span>
+                                <span class="detail-value" id="cust-education">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Self Employed</span>
+                                <span class="detail-value" id="cust-self-employed">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Monthly Income</span>
+                                <span class="detail-value" id="cust-income">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Co-Applicant Income</span>
+                                <span class="detail-value" id="cust-coincome">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Requested Loan Amount</span>
+                                <span class="detail-value" id="cust-amount">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Loan Term</span>
+                                <span class="detail-value" id="cust-term">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Property Area</span>
+                                <span class="detail-value" id="cust-property">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Loan Purpose</span>
+                                <span class="detail-value" id="cust-purpose">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Verdict Card -->
+                    <div class="glass-card" id="cust-status-card">
+                        <h2 class="card-title">Application Status Report</h2>
+                        <div class="score-display">
+                            <div class="gauge-container">
+                                <svg viewBox="0 0 100 50" class="gauge">
+                                    <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8"></path>
+                                    <path class="gauge-fill" id="cust-gauge-fill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8" stroke-dasharray="126" stroke-dashoffset="126"></path>
+                                </svg>
+                                <div class="gauge-text">
+                                    <span id="cust-probability-pct">0%</span>
+                                    <span class="label">Default Prob</span>
+                                </div>
+                            </div>
+                            <div class="verdict-box">
+                                <span class="badge" id="cust-grade-badge">LOW RISK</span>
+                                <span class="status-msg" id="cust-decision-text">APPROVED</span>
+                            </div>
+                        </div>
+
+                        <hr class="divider">
+
+                        <div class="recommendations-section">
+                            <h3><i class="fa-solid fa-list-check"></i> System Analysis</h3>
+                            <ul id="cust-recommendation-list">
+                                <li>Checking records...</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 5: Customer New Loan Eligibility -->
+            <section id="customer-eligibility-tab" class="tab-content customer-only hidden">
+                <div class="page-header">
+                    <h1>Check New Loan Eligibility</h1>
+                    <p class="subtitle">Adjust your requested parameters below to check default probability and approval decision using our live Random Forest model</p>
+                </div>
+
+                <div class="evaluator-grid">
+                    <!-- Left: Form -->
+                    <div class="glass-card form-card">
+                        <h2 class="card-title"><i class="fa-solid fa-sliders icon-margin"></i> Adjust New Loan Parameters</h2>
+                        <form id="cust-elig-form">
+                            <!-- Numeric inputs, prefilled with customer values -->
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="cust-elig-applicant-income">My Monthly Income ($)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-wallet"></i>
+                                        <input type="number" id="cust-elig-applicant-income" name="ApplicantIncome" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cust-elig-coapplicant-income">Co-Applicant Monthly Income ($)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-handshake"></i>
+                                        <input type="number" id="cust-elig-coapplicant-income" name="CoapplicantIncome" min="0" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="cust-elig-loan-amount">Requested Loan Amount ($ in Thousands)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                                        <input type="number" id="cust-elig-loan-amount" name="LoanAmount" min="1" required>
+                                    </div>
+                                    <span class="input-hint">E.g., 150 = $150,000</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cust-elig-loan-term">Loan Term (Months)</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-calendar-days"></i>
+                                        <input type="number" id="cust-elig-loan-term" name="Loan_Amount_Term" min="12" max="600" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="cust-elig-purpose">Loan Purpose</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-list"></i>
+                                        <select id="cust-elig-purpose" name="PURPOSE" required>
+                                            <option value="HOME">Home Purchase</option>
+                                            <option value="CAR">Car Purchase</option>
+                                            <option value="EDUCATION">Education Funding</option>
+                                            <option value="GOLD">Gold Loan</option>
+                                            <option value="INSURANCE">Insurance Finance</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cust-elig-property-area">Property Area</label>
+                                    <div class="input-wrapper">
+                                        <i class="fa-solid fa-map-location-dot"></i>
+                                        <select id="cust-elig-property-area" name="Property_Area" required>
+                                            <option value="Urban">Urban</option>
+                                            <option value="Semiurban">Semiurban</option>
+                                            <option value="Rural">Rural</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hidden items locked from profile (cannot be edited in simulation to maintain accuracy) -->
+                            <input type="hidden" id="cust-elig-gender" name="Gender">
+                            <input type="hidden" id="cust-elig-married" name="Married">
+                            <input type="hidden" id="cust-elig-dependents" name="Dependents">
+                            <input type="hidden" id="cust-elig-education" name="Education">
+                            <input type="hidden" id="cust-elig-self-employed" name="Self_Employed">
+                            <input type="hidden" id="cust-elig-credit-history" name="Credit_History">
+
+                            <button type="submit" class="submit-btn" id="cust-elig-evaluate-btn">
+                                <i class="fa-solid fa-bolt"></i> Evaluate New Loan Request
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Right: Results -->
+                    <div class="glass-card empty" id="cust-elig-results-panel">
+                        <div class="results-empty-state">
+                            <i class="fa-solid fa-brain-circuit brain-icon"></i>
+                            <h3>Awaiting Simulation Parameters</h3>
+                            <p>Adjust the financial amounts or details on the left and submit to evaluate eligibility.</p>
+                        </div>
+                        <div class="results-active-state hidden">
+                            <h2 class="card-title">Eligibility Forecast Report</h2>
+                            <div class="score-display">
+                                <div class="gauge-container">
+                                    <svg viewBox="0 0 100 50" class="gauge">
+                                        <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8"></path>
+                                        <path class="gauge-fill" id="cust-elig-gauge-fill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8" stroke-dasharray="126" stroke-dashoffset="126"></path>
+                                    </svg>
+                                    <div class="gauge-text">
+                                        <span id="cust-elig-probability-pct">0%</span>
+                                        <span class="label">Default Prob</span>
+                                    </div>
+                                </div>
+                                <div class="verdict-box">
+                                    <span class="badge" id="cust-elig-grade-badge">LOW RISK</span>
+                                    <span class="status-msg" id="cust-elig-decision-text">APPROVED</span>
+                                </div>
+                            </div>
+
+                            <hr class="divider">
+
+                            <div class="recommendations-section">
+                                <h3><i class="fa-solid fa-list-check"></i> Analysis & Action Steps</h3>
+                                <ul id="cust-elig-recommendation-list">
+                                    <li>Ready for analysis...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
