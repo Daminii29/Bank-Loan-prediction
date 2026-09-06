@@ -97,14 +97,5 @@ python -m http.server 3000
 
 Access the dashboard at `http://127.0.0.1:3000`.
 
----
 
-## 🔑 Demo Credentials
 
-- **Risk Analyst Admin Portal**: Account `ANALYST` | PIN `1234`
-- **Customer Account Lookup**: Account `LP001003`
-
----
-
-## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
